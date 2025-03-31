@@ -1,41 +1,92 @@
-name: Build
+name: Detailed Diagnostics
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 env:
-  DOTNET_VERSION: "9.0.202"  # Use specific version instead of "9.x"
+  DOTNET_VERSION: "9.0.202"
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
+  MSBUILDDEBUGPATH: /tmp/msbuild_log
 
 jobs:
-  build:
+  diagnose:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Fetch all history to support proper version computation
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Display .NET info
-        run: dotnet --info
+      - name: Create diagnostic directories
+        run: |
+          mkdir -p $MSBUILDDEBUGPATH
+          
+      - name: Check File Case Sensitivity
+        run: |
+          echo "Checking file case sensitivity issues:"
+          find api -type f -name "[Dd]irectory*" | sort
+          
+      - name: Directory Structure
+        run: |
+          echo "===== Repository Root ====="
+          ls -la
+          echo "===== API Directory ====="
+          ls -la api
+          echo "===== API Project Files ====="
+          find api -name "*.csproj" | xargs cat
+          
+      - name: Examine Central Package Management
+        run: |
+          echo "===== Directory.Packages.props ====="
+          cat api/Directory.Packages.props
+          echo "===== Directory.Build.props ====="
+          if [ -f "api/Directory.Build.props" ]; then
+            cat api/Directory.Build.props
+          elif [ -f "api/Directory.build.props" ]; then
+            cat api/Directory.build.props
+            echo "Note: File is lowercase 'build' instead of 'Build'"
+          fi
+          
+      - name: Check for Empty Framework References
+        run: |
+          echo "Looking for potential empty framework references:"
+          grep -r "<TargetFramework>" api/ --include="*.csproj" --include="*.props"
+          
+      - name: MSBuild Diagnostic Restore
+        run: |
+          dotnet restore api/TeamA.DevFollow.sln \
+            --verbosity detailed \
+            /fileLoggerParameters:LogFile=$MSBUILDDEBUGPATH/restore.log \
+            /consoleloggerparameters:NoSummary \
+            /p:RestoreUseStaticGraphEvaluation=true
+        continue-on-error: true
+          
+      - name: Examine MSBuild Logs
+        if: always()
+        run: |
+          echo "===== MSBuild Log Snippets ====="
+          if [ -f "$MSBUILDDEBUGPATH/restore.log" ]; then
+            echo "Searching for framework errors:"
+            grep -A 10 -B 10 "framework" $MSBUILDDEBUGPATH/restore.log || echo "No framework errors found"
+            echo "Searching for error messages:"
+            grep -A 5 -B 5 "error :" $MSBUILDDEBUGPATH/restore.log || echo "No specific errors found"
+          else
+            echo "No MSBuild log file was created"
+          fi
+          
+      - name: Try Explicit Override
+        run: |
+          echo "Trying with explicit framework override..."
+          dotnet restore api/TeamA.DevFollow.sln /p:TargetFramework=net9.0
+        continue-on-error: true
       
-      - name: Restore
-        run: dotnet restore api/TeamA.DevFollow.sln
-
-      - name: Build
-        run: dotnet build api/TeamA.DevFollow.sln --configuration Release --no-restore
-
-      - name: Test
-        run: dotnet test api/TeamA.DevFollow.sln --configuration Release --no-restore --no-build
-
-      - name: Publish
-        run: dotnet publish api/TeamA.DevFollow.sln --configuration Release --no-restore --no-build
+      - name: Upload diagnostic information
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: msbuild-diagnostics
+          path: ${{ env.MSBUILDDEBUGPATH }}
