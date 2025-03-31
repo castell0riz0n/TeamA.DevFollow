@@ -7,7 +7,7 @@ on:
       - main
 
 env:
-  DOTNET_VERSION: "9.x"
+  DOTNET_VERSION: "9.0.202"  # Use specific version instead of "9.x"
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
@@ -28,12 +28,6 @@ jobs:
       - name: Display .NET info
         run: dotnet --info
       
-      - name: Validate solution structure
-        run: |
-          ls -la
-          find . -name "Directory.Packages.props" -o -name "Directory.Build.props"
-          find . -name "*.sln"
-
       - name: Restore
         run: dotnet restore api/TeamA.DevFollow.sln
 
