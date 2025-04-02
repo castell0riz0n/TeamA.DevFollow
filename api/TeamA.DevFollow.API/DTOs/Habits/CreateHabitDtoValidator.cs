@@ -1,5 +1,4 @@
 ﻿using FluentValidation;
-using TeamA.DevFollow.API.Entities;
 
 namespace TeamA.DevFollow.API.DTOs.Habits;
 

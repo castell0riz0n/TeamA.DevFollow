@@ -1,6 +1,4 @@
-﻿using TeamA.DevFollow.API.Entities;
-
-namespace TeamA.DevFollow.API.DTOs.Tags;
+﻿namespace TeamA.DevFollow.API.DTOs.Tags;
 
 internal static class TagMappings
 {

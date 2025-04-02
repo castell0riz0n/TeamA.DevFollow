@@ -1,8 +1,4 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using TeamA.DevFollow.API.Database;
-using TeamA.DevFollow.API.DTOs.HabitTags;
-using TeamA.DevFollow.API.Entities;
 
 namespace TeamA.DevFollow.API.Controllers;
 
@@ -10,6 +6,8 @@ namespace TeamA.DevFollow.API.Controllers;
 [Route("habits/{habitId}/tags")]
 public sealed class HabitTagsController(ApplicationDbContext dbContext) : ControllerBase
 {
+    public static readonly string Name = nameof(HabitTagsController).Replace("Controller", string.Empty);
+
     [HttpPut]
     public async Task<ActionResult> UpsertHabitTags(string habitId, UpsertHabitTagsDto upsertHabitTagsDto)
     {
