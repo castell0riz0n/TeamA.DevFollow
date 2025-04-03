@@ -1,4 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using TeamA.DevFollow.API.Database;
+using TeamA.DevFollow.API.DTOs.HabitTags;
+using TeamA.DevFollow.API.Entities;
 
 namespace TeamA.DevFollow.API.Controllers;
 

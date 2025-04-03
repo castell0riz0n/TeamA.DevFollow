@@ -1,3 +1,5 @@
+using TeamA.DevFollow.API.DTOs.Common;
+
 namespace TeamA.DevFollow.API.DTOs.Tags;
 
 public sealed record TagDto
@@ -7,4 +9,5 @@ public sealed record TagDto
     public string? Description { get; init; }
     public required DateTime CreatedAtUtc { get; init; }
     public DateTime? UpdatedAtUtc { get; init; }
+    public List<LinkDto> Links { get; set; }
 }
