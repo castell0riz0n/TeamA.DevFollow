@@ -1,4 +1,6 @@
-﻿namespace TeamA.DevFollow.API.DTOs.Habits;
+﻿using TeamA.DevFollow.API.Entities;
+
+namespace TeamA.DevFollow.API.DTOs.Habits;
 
 public sealed record HabitWithTagsDtoV2
 {

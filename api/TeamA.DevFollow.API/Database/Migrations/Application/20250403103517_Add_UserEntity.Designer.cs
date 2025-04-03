@@ -12,8 +12,8 @@ using TeamA.DevFollow.API.Database.Contexts;
 namespace TeamA.DevFollow.API.Database.Migrations.Application
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250329105549_Add_Habit")]
-    partial class Add_Habit
+    [Migration("20250403103517_Add_UserEntity")]
+    partial class Add_UserEntity
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -32,6 +32,10 @@ namespace TeamA.DevFollow.API.Database.Migrations.Application
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
                         .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
@@ -72,6 +76,114 @@ namespace TeamA.DevFollow.API.Database.Migrations.Application
                         .HasName("pk_habits");
 
                     b.ToTable("habits", "dev_follow");
+                });
+
+            modelBuilder.Entity("TeamA.DevFollow.API.Entities.HabitTag", b =>
+                {
+                    b.Property<string>("HabitId")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("habit_id");
+
+                    b.Property<string>("TagId")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("tag_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.HasKey("HabitId", "TagId")
+                        .HasName("pk_habit_tags");
+
+                    b.HasIndex("TagId")
+                        .HasDatabaseName("ix_habit_tags_tag_id");
+
+                    b.ToTable("habit_tags", "dev_follow");
+                });
+
+            modelBuilder.Entity("TeamA.DevFollow.API.Entities.Tag", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_tags");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_tags_name");
+
+                    b.ToTable("tags", "dev_follow");
+                });
+
+            modelBuilder.Entity("TeamA.DevFollow.API.Entities.User", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("email");
+
+                    b.Property<string>("IdentityId")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("identity_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_users");
+
+                    b.HasIndex("Email")
+                        .IsUnique()
+                        .HasDatabaseName("ix_users_email");
+
+                    b.HasIndex("IdentityId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_users_identity_id");
+
+                    b.ToTable("users", "dev_follow");
                 });
 
             modelBuilder.Entity("TeamA.DevFollow.API.Entities.Habit", b =>
@@ -154,6 +266,28 @@ namespace TeamA.DevFollow.API.Database.Migrations.Application
 
                     b.Navigation("Target")
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("TeamA.DevFollow.API.Entities.HabitTag", b =>
+                {
+                    b.HasOne("TeamA.DevFollow.API.Entities.Habit", null)
+                        .WithMany("HabitTags")
+                        .HasForeignKey("HabitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_habit_tags_habits_habit_id");
+
+                    b.HasOne("TeamA.DevFollow.API.Entities.Tag", null)
+                        .WithMany()
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_habit_tags_tags_tag_id");
+                });
+
+            modelBuilder.Entity("TeamA.DevFollow.API.Entities.Habit", b =>
+                {
+                    b.Navigation("HabitTags");
                 });
 #pragma warning restore 612, 618
         }

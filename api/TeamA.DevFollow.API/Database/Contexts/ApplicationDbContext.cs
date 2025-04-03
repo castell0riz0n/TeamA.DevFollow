@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using TeamA.DevFollow.API.Entities;
 
-namespace TeamA.DevFollow.API.Database;
+namespace TeamA.DevFollow.API.Database.Contexts;
 
 public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options)
 {
