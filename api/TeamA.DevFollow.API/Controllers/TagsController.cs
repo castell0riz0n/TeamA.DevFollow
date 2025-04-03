@@ -2,10 +2,6 @@
 using FluentValidation.Results;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
-using Microsoft.EntityFrameworkCore;
-using TeamA.DevFollow.API.Database;
-using TeamA.DevFollow.API.DTOs.Tags;
-using TeamA.DevFollow.API.Entities;
 
 namespace TeamA.DevFollow.API.Controllers;
 

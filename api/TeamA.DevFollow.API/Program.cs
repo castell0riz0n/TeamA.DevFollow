@@ -1,10 +1,11 @@
+
 using TeamA.DevFollow.API;
 using TeamA.DevFollow.API.Extensions;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 builder
-    .AddControllers()
+    .AddApiServices()
     .AddErrorHandling()
     .AddDatabase()
     .AddObservability()
