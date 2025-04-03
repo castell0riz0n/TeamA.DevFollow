@@ -9,7 +9,8 @@ builder
     .AddErrorHandling()
     .AddDatabase()
     .AddObservability()
-    .AddApplicationServices();
+    .AddApplicationServices()
+    .AddAuthenticationServices();
 
 WebApplication app = builder.Build();
 
@@ -18,6 +19,8 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 
     await app.ApplyMigrationsAsync();
+
+    await app.SeedDataAsync();
 }
 
 app.UseHttpsRedirection();

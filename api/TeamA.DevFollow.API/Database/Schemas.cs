@@ -3,4 +3,5 @@
 public static class Schemas
 {
     public const string Application = "dev_follow";
+    public const string Identity = "identity";
 }

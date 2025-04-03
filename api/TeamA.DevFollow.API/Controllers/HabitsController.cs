@@ -3,10 +3,11 @@ using System.Linq.Dynamic.Core;
 using System.Net.Mime;
 using Asp.Versioning;
 using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using TeamA.DevFollow.API.Database;
+using TeamA.DevFollow.API.Database.Contexts;
 using TeamA.DevFollow.API.DTOs.Common;
 using TeamA.DevFollow.API.DTOs.Habits;
 using TeamA.DevFollow.API.Entities;
@@ -15,18 +16,37 @@ using TeamA.DevFollow.API.Services.Sorting;
 
 namespace TeamA.DevFollow.API.Controllers;
 
+[Authorize(Roles = Roles.Member)]
 [ApiController]
 [Route("habits")]
 [ApiVersion(1.0)]
-public sealed class HabitsController(ApplicationDbContext dbContext, LinkService linkService) : ControllerBase
+[Produces(
+    MediaTypeNames.Application.Json,
+    CustomMediaTypeNames.Application.JsonV1,
+    CustomMediaTypeNames.Application.JsonV2,
+    CustomMediaTypeNames.Application.HateoasJson,
+    CustomMediaTypeNames.Application.HateoasJsonV1,
+    CustomMediaTypeNames.Application.HateoasJsonV2
+    )]
+public sealed class HabitsController(
+    ApplicationDbContext dbContext, 
+    LinkService linkService, 
+    UserContext userContext) : ControllerBase
 {
     [HttpGet]
-    [Produces(MediaTypeNames.Application.Json, CustomMediaTypeNames.Application.HateoasJson)]
+    [Authorize(Roles = Roles.Admin)]
     public async Task<IActionResult> GetHabits(
         [FromQuery] HabitsQueryParameters query,
         SortMappingProvider sortMappingProvider,
         DataShapingService dataShapingService)
     {
+
+        string? userId = await userContext.GetUserIdAsync();
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Unauthorized();
+        }
+
         if (!sortMappingProvider.ValidateMappings<HabitDto, Habit>(query.Sort))
         {
             return Problem(
@@ -47,6 +67,7 @@ public sealed class HabitsController(ApplicationDbContext dbContext, LinkService
 
         IQueryable<HabitDto> habitsQuery = dbContext
             .Habits
+            .Where(h => h.UserId == userId)
             .Where(h => query.Search == null ||
                         h.Name.ToLower().Contains(query.Search) ||
                         h.Description != null && h.Description.ToLower().Contains(query.Search))
@@ -62,18 +83,17 @@ public sealed class HabitsController(ApplicationDbContext dbContext, LinkService
             .Take(query.PageSize)
             .ToListAsync();
 
-        bool includeLinks = query.Accept == CustomMediaTypeNames.Application.HateoasJson;
         var paginationResult = new PaginationResult<ExpandoObject>
         {
             Items = dataShapingService.ShapeCollectionData(
                 habits,
                 query.Fields,
-                includeLinks ? h => CreateLinksForHabit(h.Id, query.Fields) : null),
+                query.IncludeLinks ? h => CreateLinksForHabit(h.Id, query.Fields) : null),
             Page = query.Page,
             PageSize = query.PageSize,
             TotalCount = totalCount
         };
-        if (includeLinks)
+        if (query.IncludeLinks)
         {
             paginationResult.Links = CreateLinksForHabits(
                 query,
@@ -88,21 +108,26 @@ public sealed class HabitsController(ApplicationDbContext dbContext, LinkService
     [MapToApiVersion(1.0)]
     public async Task<IActionResult> GetHabit(
         string id,
-        string? fields,
-        [FromHeader(Name = "Accept")]
-        string? accept,
+        HabitQueryParameters query,
         DataShapingService dataShapingService)
     {
-        if (!dataShapingService.Validate<HabitWithTagsDto>(fields))
+
+        string? userId = await userContext.GetUserIdAsync();
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Unauthorized();
+        }
+
+        if (!dataShapingService.Validate<HabitWithTagsDto>(query.Fields))
         {
             return Problem(
                 statusCode: StatusCodes.Status400BadRequest,
-                detail: $"The provided data shaping fields aren't valid: '{fields}'");
+                detail: $"The provided data shaping fields aren't valid: '{query.Fields}'");
         }
 
         HabitWithTagsDto? habit = await dbContext
             .Habits
-            .Where(h => h.Id == id)
+            .Where(h => h.Id == id && h.UserId == userId)
             .Select(HabitQueries.ProjectToDtoWithTags())
             .FirstOrDefaultAsync();
 
@@ -111,11 +136,11 @@ public sealed class HabitsController(ApplicationDbContext dbContext, LinkService
             return NotFound();
         }
 
-        ExpandoObject shapedHabitDto = dataShapingService.ShapeData(habit, fields);
+        ExpandoObject shapedHabitDto = dataShapingService.ShapeData(habit, query.Fields);
 
-        if (accept == CustomMediaTypeNames.Application.HateoasJson)
+        if (query.IncludeLinks)
         {
-            List<LinkDto> links = CreateLinksForHabit(id, fields);
+            List<LinkDto> links = CreateLinksForHabit(id, query.Fields);
 
             shapedHabitDto.TryAdd("links", links);
         }
@@ -127,21 +152,25 @@ public sealed class HabitsController(ApplicationDbContext dbContext, LinkService
     [ApiVersion(2.0)]
     public async Task<IActionResult> GetHabitV2(
         string id,
-        string? fields,
-        [FromHeader(Name = "Accept")]
-        string? accept,
+        HabitQueryParameters query,
         DataShapingService dataShapingService)
     {
-        if (!dataShapingService.Validate<HabitWithTagsDtoV2>(fields))
+        string? userId = await userContext.GetUserIdAsync();
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Unauthorized();
+        }
+
+        if (!dataShapingService.Validate<HabitWithTagsDtoV2>(query.Fields))
         {
             return Problem(
                 statusCode: StatusCodes.Status400BadRequest,
-                detail: $"The provided data shaping fields aren't valid: '{fields}'");
+                detail: $"The provided data shaping fields aren't valid: '{query.Fields}'");
         }
 
         HabitWithTagsDtoV2? habit = await dbContext
             .Habits
-            .Where(h => h.Id == id)
+            .Where(h => h.Id == id && h.UserId == userId)
             .Select(HabitQueries.ProjectToDtoWithTagsV2())
             .FirstOrDefaultAsync();
 
@@ -150,11 +179,11 @@ public sealed class HabitsController(ApplicationDbContext dbContext, LinkService
             return NotFound();
         }
 
-        ExpandoObject shapedHabitDto = dataShapingService.ShapeData(habit, fields);
+        ExpandoObject shapedHabitDto = dataShapingService.ShapeData(habit, query.Fields);
 
-        if (accept == CustomMediaTypeNames.Application.HateoasJson)
+        if (query.IncludeLinks)
         {
-            List<LinkDto> links = CreateLinksForHabit(id, fields);
+            List<LinkDto> links = CreateLinksForHabit(id, query.Fields);
 
             shapedHabitDto.TryAdd("links", links);
         }
@@ -165,11 +194,18 @@ public sealed class HabitsController(ApplicationDbContext dbContext, LinkService
     [HttpPost]
     public async Task<ActionResult<HabitDto>> CreateHabit(
         CreateHabitDto createHabitDto,
+        HabitQueryParameters query,
         IValidator<CreateHabitDto> validator)
     {
+        string? userId = await userContext.GetUserIdAsync();
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Unauthorized();
+        }
+
         await validator.ValidateAndThrowAsync(createHabitDto);
 
-        Habit habit = createHabitDto.ToEntity();
+        Habit habit = createHabitDto.ToEntity(userId);
 
         dbContext.Habits.Add(habit);
 
@@ -178,13 +214,20 @@ public sealed class HabitsController(ApplicationDbContext dbContext, LinkService
         HabitDto habitDto = habit.ToDto();
         habitDto.Links = CreateLinksForHabit(habit.Id, null);
 
-        return CreatedAtAction(nameof(GetHabit), new { id = habitDto.Id }, habitDto);
+        return CreatedAtAction(nameof(GetHabit), new { id = habitDto.Id, query  }, habitDto);
     }
 
     [HttpPut("{id}")]
     public async Task<ActionResult> UpdateHabit(string id, UpdateHabitDto updateHabitDto)
     {
-        Habit? habit = await dbContext.Habits.FirstOrDefaultAsync(h => h.Id == id);
+
+        string? userId = await userContext.GetUserIdAsync();
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Unauthorized();
+        }
+
+        Habit? habit = await dbContext.Habits.FirstOrDefaultAsync(h => h.Id == id && h.UserId == userId);
 
         if (habit is null)
         {
@@ -201,7 +244,13 @@ public sealed class HabitsController(ApplicationDbContext dbContext, LinkService
     [HttpPatch("{id}")]
     public async Task<ActionResult> PatchHabit(string id, JsonPatchDocument<HabitDto> patchDocument)
     {
-        Habit? habit = await dbContext.Habits.FirstOrDefaultAsync(h => h.Id == id);
+        string? userId = await userContext.GetUserIdAsync();
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Unauthorized();
+        }
+
+        Habit? habit = await dbContext.Habits.FirstOrDefaultAsync(h => h.Id == id && h.UserId == userId);
 
         if (habit is null)
         {
@@ -229,7 +278,12 @@ public sealed class HabitsController(ApplicationDbContext dbContext, LinkService
     [HttpDelete("{id}")]
     public async Task<ActionResult> DeleteHabit(string id)
     {
-        Habit? habit = await dbContext.Habits.FirstOrDefaultAsync(h => h.Id == id);
+        string? userId = await userContext.GetUserIdAsync();
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Unauthorized();
+        }
+        Habit? habit = await dbContext.Habits.FirstOrDefaultAsync(h => h.Id == id && h.UserId == userId);
 
         if (habit is null)
         {

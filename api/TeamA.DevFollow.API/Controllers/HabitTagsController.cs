@@ -1,7 +1,13 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using TeamA.DevFollow.API.Database.Contexts;
+using TeamA.DevFollow.API.DTOs.HabitTags;
+using TeamA.DevFollow.API.Entities;
 
 namespace TeamA.DevFollow.API.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("habits/{habitId}/tags")]
 public sealed class HabitTagsController(ApplicationDbContext dbContext) : ControllerBase
